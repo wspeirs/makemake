@@ -64,7 +64,11 @@ foreach $source (@source) {
 
   ($s, $suf) = split(/\./, $source);
 
-  print MAKEFILE `g++ -M $source`;
+  if($source =~ /\.c$/) {
+    print MAKEFILE `gcc -M $source`;
+  } else {
+    print MAKEFILE `g++ -M $source`;
+  }
 
   if($suf eq "c") { print MAKEFILE "\t\$(GCC) -c \$(FLAGS) $source\n" ; }
 
