@@ -1,0 +1,79 @@
+#! /usr/bin/perl -w
+
+# this will look at the files in a directory and make a generic make file for them
+
+if(@ARGV < 1) {
+  print STDERR "Need to supply a program name!\n";
+  exit(-1);
+}
+
+opendir(DIR, ".") or die $!;
+
+while($file = readdir(DIR)) {
+  push(@source, $file) if($file =~ /(\.c)|(\.cpp)/ and $file !~ /~$/); # found a source file
+}
+
+closedir(DIR);
+
+
+#
+# Setup some common vars...
+#
+if(lc $ARGV[0] eq "-u") { # we just want to update the make file
+  open(FILE, "Makefile") or die $!;       # open to read in the old file
+
+  @lines = <FILE>;
+
+  close(FILE);
+
+  # open for writing
+  open(MAKEFILE, ">Makefile") or die $!;
+
+  foreach $line (@lines) {
+    last if($line =~ /^all:/);
+
+    print MAKEFILE $line;
+  }
+
+} else {
+  open(MAKEFILE, ">Makefile") or die $!;
+
+  print MAKEFILE "GPP   = " . `which g++`;
+  print MAKEFILE "GCC   = " . `which gcc`;
+  print MAKEFILE "FLAGS = -W -Wall -pedantic -g -O3 -Wctor-dtor-privacy -Wold-style-cast -Woverloaded-virtual\n";
+  print MAKEFILE "LIBS  =\n";
+  print MAKEFILE "EXEC  = $ARGV[0]\n\n";
+}
+
+# go through and make the depends for all
+print MAKEFILE "all: ";
+
+foreach $source (@source) {
+  ($s, $suf) = split(/\./, $source);
+
+  print MAKEFILE "$s.o ";
+}
+
+print MAKEFILE "\n";
+
+print MAKEFILE "\t\$(GPP) \$(FLAGS) \$(LIBS) *.o -o \$(EXEC)\n\n";
+
+# go through and make the actual file
+foreach $source (@source) {
+  print STDERR "Adding $source\n";
+
+  ($s, $suf) = split(/\./, $source);
+
+  print MAKEFILE `g++ -M $source`;
+
+  if($suf eq "c") { print MAKEFILE "\t\$(GCC) -c \$(FLAGS) $source\n" ; }
+
+  else { print MAKEFILE "\t\$(GPP) -c \$(FLAGS) $source\n"; }
+
+  print MAKEFILE "\n";
+}
+
+print MAKEFILE "clean:\n";
+print MAKEFILE "\trm *~ *.o \$(EXEC)\n";
+
+close(MAKEFILE);
